@@ -9,8 +9,8 @@ const RiskChart = ({ projectId = 1 }) => {
     const COLORS = ['#ef4444', '#f59e0b', '#10b981', '#64748b']; 
 
     useEffect(() => {
-        // Updated to use the live Railway backend URL
-        fetch(`https://prosight-backend-production.up.railway.app/api/risks/project/${projectId}`)
+        // Updated to use the Vite environment variable
+        fetch(`${import.meta.env.VITE_API_URL}/api/risks/project/${projectId}`)
             .then(res => res.json())
             .then(data => {
                 // Count the number of risks per impact level

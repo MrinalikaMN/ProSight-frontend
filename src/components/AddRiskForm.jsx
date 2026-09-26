@@ -15,10 +15,10 @@ export default function AddRiskForm({ onRiskAdded }) {
         impact: impact,
         project: { id: 1 }
       };
-      // Updated to use the live Railway backend URL
-      const response = await axios.post('https://prosight-backend-production.up.railway.app/api/risks', payload);
       
-      // We will fix the live update function next, just logging for now to ensure it works
+      // Updated to use the Vite environment variable
+      const response = await axios.post(`${import.meta.env.VITE_API_URL}/api/risks`, payload);
+      
       if (typeof onRiskAdded === 'function') {
         onRiskAdded(response.data);
       }

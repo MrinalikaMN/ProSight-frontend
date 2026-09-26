@@ -5,8 +5,8 @@ const RecommendationPanel = ({ projectId = 1 }) => {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        // Updated to use the live Railway backend URL
-        fetch(`https://prosight-backend-production.up.railway.app/api/recommendations/project/${projectId}`)
+        // Updated to use the Vite environment variable
+        fetch(`${import.meta.env.VITE_API_URL}/api/recommendations/project/${projectId}`)
             .then(res => res.json())
             .then(data => {
                 setRecommendations(data);
@@ -52,7 +52,6 @@ const RecommendationPanel = ({ projectId = 1 }) => {
                             >
                                 <div className="flex items-start justify-between">
                                     <div className="space-y-1">
-                                        {/* Updated to use your exact Java variables */}
                                         <p className="text-sm font-medium text-slate-800 leading-snug">
                                             {rec.suggestedAction}
                                         </p>

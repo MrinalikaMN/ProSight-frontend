@@ -1,49 +1,40 @@
+import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 
 export default function Sidebar() {
   const location = useLocation();
 
   const navItems = [
-    { name: 'Dashboard', path: '/', icon: '📊' },
-    { name: 'Projects', path: '/projects', icon: '📁' },
-    { name: 'Early Warnings', path: '/warnings', icon: '🚨' },
-    { name: 'Team Capacity', path: '/team', icon: '👥' },
+    { name: 'Dashboard', path: '/' },
+    { name: 'Projects', path: '/projects' },
+    { name: 'Warnings', path: '/warnings' },
+    { name: 'Team', path: '/team' },
   ];
 
   return (
-    <div className="w-64 bg-slate-900 text-white min-h-screen flex flex-col fixed left-0 top-0">
-      <div className="p-6">
-        <h1 className="text-2xl font-bold tracking-wider text-indigo-400">ProSight</h1>
-        <p className="text-xs text-slate-400 mt-1">Intelligence Platform</p>
+    <aside className="w-64 h-screen bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 fixed left-0 top-0 flex flex-col transition-colors duration-300 z-40">
+      <div className="h-24 flex items-center px-8 border-b border-slate-200 dark:border-slate-800 shrink-0">
+        <h1 className="text-3xl font-black text-indigo-600 dark:text-indigo-400 tracking-tight">ProSight</h1>
       </div>
-      <nav className="flex-1 px-4 space-y-2 mt-4">
+
+      <nav className="flex-1 py-6 px-4 space-y-2 overflow-y-auto">
         {navItems.map((item) => {
           const isActive = location.pathname === item.path;
           return (
             <Link
               key={item.name}
               to={item.path}
-              className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors ${
-                isActive ? 'bg-indigo-600 text-white' : 'text-slate-300 hover:bg-slate-800'
+              className={`block px-4 py-3 rounded-xl font-bold transition-all ${
+                isActive 
+                  ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300 shadow-sm' 
+                  : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white'
               }`}
             >
-              <span className="text-lg">{item.icon}</span>
-              <span className="font-medium">{item.name}</span>
+              {item.name}
             </Link>
           );
         })}
       </nav>
-      <div className="p-6 border-t border-slate-800">
-        <div className="flex items-center space-x-3">
-          <div className="w-8 h-8 bg-indigo-500 rounded-full flex items-center justify-center font-bold">
-            PM
-          </div>
-          <div>
-            <p className="text-sm font-medium">Project Manager</p>
-            <p className="text-xs text-slate-400">Active Session</p>
-          </div>
-        </div>
-      </div>
-    </div>
+    </aside>
   );
 }

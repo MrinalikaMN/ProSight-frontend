@@ -17,7 +17,6 @@ export default function Projects() {
   const userRole = localStorage.getItem("userRole");
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
   
-  // Explicitly define headers to guarantee the JWT token is sent
   const getAuthHeaders = () => {
     const token = localStorage.getItem('token');
     return { headers: { Authorization: `Bearer ${token}` } };
@@ -82,7 +81,7 @@ export default function Projects() {
   };
 
   const handleDeleteProject = async (projectId) => {
-    if (userRole !== 'ADMIN') return;
+    if (userRole !== 'ROLE_ADMIN') return;
     try {
       await axios.delete(`${API_URL}/api/projects/${projectId}`, getAuthHeaders());
       if (selectedProject?.id === projectId) setSelectedProject(null);
@@ -106,7 +105,7 @@ export default function Projects() {
   };
 
   const handleDeleteTask = async (taskId) => {
-    if (userRole !== 'ADMIN' || !selectedProject) return;
+    if (userRole !== 'ROLE_ADMIN' || !selectedProject) return;
     try {
       await axios.delete(`${API_URL}/api/projects/${selectedProject.id}/tasks/${taskId}`, getAuthHeaders());
       fetchTasks(selectedProject.id);
@@ -157,7 +156,7 @@ export default function Projects() {
       <div className="w-full md:w-1/4 bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-5 h-fit">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-lg font-bold text-slate-900 dark:text-white">Projects</h2>
-          {userRole === 'ADMIN' && (
+          {userRole === 'ROLE_ADMIN' && (
             <button onClick={() => setIsProjectModalOpen(true)} className="p-1.5 bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400 rounded-lg hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4"/></svg>
             </button>
@@ -167,7 +166,7 @@ export default function Projects() {
           {projects.map(p => (
             <div key={p.id} onClick={() => selectProject(p)} className={`p-3 rounded-xl cursor-pointer flex justify-between items-center transition-colors border ${selectedProject?.id === p.id ? 'bg-indigo-50 border-indigo-200 dark:bg-indigo-900/20 dark:border-indigo-800' : 'bg-transparent border-transparent hover:bg-slate-50 dark:hover:bg-slate-700/50'}`}>
               <span className={`font-semibold ${selectedProject?.id === p.id ? 'text-indigo-700 dark:text-indigo-400' : 'text-slate-700 dark:text-slate-300'}`}>{p.name}</span>
-              {userRole === 'ADMIN' && (
+              {userRole === 'ROLE_ADMIN' && (
                 <button onClick={(e) => { e.stopPropagation(); handleDeleteProject(p.id); }} className="text-slate-400 hover:text-rose-500 transition-colors">
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                 </button>
@@ -216,7 +215,7 @@ export default function Projects() {
                                 <div ref={provided.innerRef} {...provided.draggableProps} {...provided.dragHandleProps} className={`bg-white dark:bg-slate-800 p-4 rounded-xl border ${snapshot.isDragging ? 'border-indigo-500 shadow-lg' : 'border-slate-200 dark:border-slate-700 shadow-sm'} group`}>
                                   <div className="flex justify-between items-start mb-2">
                                     <span className={`text-[10px] uppercase tracking-wider font-bold px-2 py-0.5 rounded border ${getPriorityColor(task.priority)}`}>{task.priority}</span>
-                                    {userRole === 'ADMIN' && (
+                                    {userRole === 'ROLE_ADMIN' && (
                                       <button onClick={() => handleDeleteTask(task.id)} className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-rose-500 transition-all">
                                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                                       </button>

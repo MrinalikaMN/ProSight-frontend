@@ -12,7 +12,7 @@ export default function Projects() {
   const [newProjectName, setNewProjectName] = useState("");
   
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
-  const [newTask, setNewTask] = useState({ name: "", description: "", priority: "Medium", dueDate: "", assignee: "" });
+  const [newTask, setNewTask] = useState({ name: "", description: "", status: "To Do", priority: "Medium", dueDate: "", assignee: "" });
 
   const userRole = localStorage.getItem("userRole");
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
@@ -96,7 +96,7 @@ export default function Projects() {
     if (!selectedProject) return;
     try {
       await axios.post(`${API_URL}/api/projects/${selectedProject.id}/tasks`, newTask, getAuthHeaders());
-      setNewTask({ name: "", description: "", priority: "Medium", dueDate: "", assignee: "" });
+      setNewTask({ name: "", description: "", status: "To Do", priority: "Medium", dueDate: "", assignee: "" });
       setIsTaskModalOpen(false);
       fetchTasks(selectedProject.id);
     } catch (err) {
@@ -143,6 +143,7 @@ export default function Projects() {
   const getPriorityColor = (priority) => {
     switch(priority) {
       case 'High': return 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400 border-rose-200 dark:border-rose-800';
+      case 'Critical': return 'bg-red-200 text-red-800 dark:bg-red-900/50 dark:text-red-300 border-red-300 dark:border-red-800';
       case 'Medium': return 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border-amber-200 dark:border-amber-800';
       case 'Low': return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800';
       default: return 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-400 border-slate-200 dark:border-slate-700';
@@ -284,29 +285,35 @@ export default function Projects() {
                   <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wide">Description</label>
                   <textarea value={newTask.description} onChange={(e) => setNewTask({...newTask, description: e.target.value})} rows="3" className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-xl px-4 py-2.5 text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 resize-none" />
                 </div>
+                
                 <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wide">Status</label>
+                    <select value={newTask.status} onChange={(e) => setNewTask({...newTask, status: e.target.value})} className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-xl px-4 py-2.5 text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer">
+                      <option value="To Do">To Do</option>
+                      <option value="In Progress">In Progress</option>
+                      <option value="Completed">Completed</option>
+                    </select>
+                  </div>
                   <div>
                     <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wide">Priority</label>
                     <select value={newTask.priority} onChange={(e) => setNewTask({...newTask, priority: e.target.value})} className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-xl px-4 py-2.5 text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer">
                       <option value="Low">Low</option>
                       <option value="Medium">Medium</option>
                       <option value="High">High</option>
+                      <option value="Critical">Critical</option>
                     </select>
                   </div>
                   <div>
                     <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wide">Due Date</label>
                     <input type="date" value={newTask.dueDate} onChange={(e) => setNewTask({...newTask, dueDate: e.target.value})} className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-xl px-4 py-2.5 text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500" />
                   </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wide">Assignee</label>
+                    <input type="text" placeholder="e.g. Frontend Developer" value={newTask.assignee} onChange={(e) => setNewTask({...newTask, assignee: e.target.value})} className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-xl px-4 py-2.5 text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500" />
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wide">Assignee</label>
-                  <select value={newTask.assignee} onChange={(e) => setNewTask({...newTask, assignee: e.target.value})} className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-xl px-4 py-2.5 text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer">
-                    <option value="">Unassigned</option>
-                    {users.map(u => (
-                      <option key={u.id} value={u.username}>{u.username}</option>
-                    ))}
-                  </select>
-                </div>
+
                 <div className="flex gap-3 justify-end pt-4">
                   <button type="button" onClick={() => setIsTaskModalOpen(false)} className="px-5 py-2.5 rounded-xl font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">Cancel</button>
                   <button type="submit" className="px-5 py-2.5 rounded-xl font-bold bg-indigo-600 hover:bg-indigo-700 text-white transition-colors shadow-sm">Save Task</button>

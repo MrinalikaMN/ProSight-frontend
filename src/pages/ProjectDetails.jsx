@@ -1,111 +1,91 @@
-import React, { useState, useEffect } from 'react';
-import axios from 'axios';
-import { useParams, Link } from 'react-router-dom';
+export default function TaskModal({ isOpen, onClose, projectId, projectName, onTaskAdded }) {
+  const [formData, setFormData] = useState({
+    name: '',
+    description: '',
+    status: 'To Do',
+    dueDate: '',
+    priority: 'Medium',
+    assignee: ''
+  });
 
-export default function ProjectDetails() {
-  const { id } = useParams(); // Gets the project ID from the URL
-  const [project, setProject] = useState(null);
-  const [tasks, setTasks] = useState([]);
-  const [loading, setLoading] = useState(true);
+  if (!isOpen) return null;
 
-  useEffect(() => {
-    const fetchProjectAndTasks = async () => {
-      try {
-        const [projectRes, tasksRes] = await Promise.all([
-          axios.get(`${import.meta.env.VITE_API_URL}/api/projects/${id}`),
-          axios.get(`${import.meta.env.VITE_API_URL}/api/tasks/project/${id}`)
-        ]);
-        setProject(projectRes.data);
-        setTasks(tasksRes.data);
-        setLoading(false);
-      } catch (error) {
-        console.error("Failed to load project details", error);
-        setLoading(false);
-      }
-    };
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
 
-    fetchProjectAndTasks();
-  }, [id]);
-
-  if (loading) return <div className="text-slate-500 font-sans p-8">Loading project data...</div>;
-  if (!project) return <div className="text-red-500 font-sans p-8">Project not found.</div>;
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.post(`${API_URL}/api/projects/${projectId}/tasks`, formData, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (onTaskAdded) onTaskAdded(response.data);
+      setFormData({ name: '', description: '', status: 'To Do', dueDate: '', priority: 'Medium', assignee: '' });
+      onClose();
+    } catch (err) {
+      console.error("Failed to add task", err);
+      alert("Error adding task. Check console for details.");
+    }
+  };
 
   return (
-    <div className="max-w-5xl mx-auto font-sans">
-      {/* Navigation & Header */}
-      <div className="mb-8">
-        <Link to="/projects" className="text-indigo-600 hover:text-indigo-800 text-sm font-semibold mb-4 inline-block">
-          ← Back to Portfolio
-        </Link>
-        <div className="flex justify-between items-start mt-2">
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+      <div className="bg-[#1e1e2d] border border-slate-800 rounded-xl w-full max-w-lg p-6 shadow-2xl">
+        <h3 className="text-lg font-bold text-white mb-6">
+          Add Task to {projectName || 'Project'}
+        </h3>
+        
+        <form onSubmit={handleSubmit} className="flex flex-col gap-5">
           <div>
-            <h1 className="text-4xl font-extrabold text-slate-900 mb-2">{project.name}</h1>
-            <p className="text-slate-500 font-medium text-lg">{project.description}</p>
+            <label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase tracking-wider">Task Name</label>
+            <input required type="text" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} className="w-full bg-[#151521] border border-slate-700 rounded-lg px-4 py-2.5 text-white outline-none focus:border-indigo-500 transition-colors" />
           </div>
-          <span className={`px-4 py-1.5 rounded-full text-sm font-bold ${project.health >= 80 ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
-            {project.status || 'Active'}
-          </span>
-        </div>
-      </div>
 
-      {/* Stats Row */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
-          <p className="text-sm font-semibold text-slate-500 mb-1">Total Budget</p>
-          <h3 className="text-2xl font-bold text-slate-800">${(project.budget || 0).toLocaleString()}</h3>
-        </div>
-        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
-          <p className="text-sm font-semibold text-slate-500 mb-1">System Health</p>
-          <h3 className="text-2xl font-bold text-slate-800">{project.health}/100</h3>
-        </div>
-        <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
-          <p className="text-sm font-semibold text-slate-500 mb-1">Total Tasks</p>
-          <h3 className="text-2xl font-bold text-slate-800">{tasks.length}</h3>
-        </div>
-      </div>
+          <div>
+            <label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase tracking-wider">Description</label>
+            <textarea rows="3" value={formData.description} onChange={(e) => setFormData({...formData, description: e.target.value})} className="w-full bg-[#151521] border border-slate-700 rounded-lg px-4 py-2.5 text-white outline-none focus:border-indigo-500 transition-colors" />
+          </div>
 
-      {/* Task List */}
-      <div>
-        <h2 className="text-2xl font-bold text-slate-900 mb-4">Project Tasks</h2>
-        {tasks.length === 0 ? (
-          <div className="text-center py-8 bg-white rounded-xl border border-dashed border-slate-300">
-            <p className="text-slate-500">No tasks assigned to this project yet.</p>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase tracking-wider">Status</label>
+              <select value={formData.status} onChange={(e) => setFormData({...formData, status: e.target.value})} className="w-full bg-[#151521] border border-slate-700 rounded-lg px-4 py-2.5 text-white outline-none focus:border-indigo-500 transition-colors">
+                <option value="To Do">To Do</option>
+                <option value="In Progress">In Progress</option>
+                <option value="Completed">Completed</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase tracking-wider">Priority</label>
+              <select value={formData.priority} onChange={(e) => setFormData({...formData, priority: e.target.value})} className="w-full bg-[#151521] border border-slate-700 rounded-lg px-4 py-2.5 text-white outline-none focus:border-indigo-500 transition-colors">
+                <option value="Low">Low</option>
+                <option value="Medium">Medium</option>
+                <option value="High">High</option>
+                <option value="Critical">Critical</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase tracking-wider">Due Date</label>
+              <input type="date" value={formData.dueDate} onChange={(e) => setFormData({...formData, dueDate: e.target.value})} className="w-full bg-[#151521] border border-slate-700 rounded-lg px-4 py-2.5 text-white outline-none focus:border-indigo-500 transition-colors [color-scheme:dark]" />
+            </div>
+
+            <div>
+              <label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase tracking-wider">Assignee</label>
+              <input type="text" placeholder="e.g. Frontend Developer" value={formData.assignee} onChange={(e) => setFormData({...formData, assignee: e.target.value})} className="w-full bg-[#151521] border border-slate-700 rounded-lg px-4 py-2.5 text-white outline-none focus:border-indigo-500 transition-colors" />
+            </div>
           </div>
-        ) : (
-          <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-slate-50 border-b border-slate-200">
-                  <th className="p-4 text-sm font-semibold text-slate-600">Task Name</th>
-                  <th className="p-4 text-sm font-semibold text-slate-600">Assigned Team</th>
-                  <th className="p-4 text-sm font-semibold text-slate-600">Expected (Days)</th>
-                  <th className="p-4 text-sm font-semibold text-slate-600">Actual (Days)</th>
-                  <th className="p-4 text-sm font-semibold text-slate-600">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {tasks.map(task => {
-                  const isDelayed = task.actualDays > task.expectedDays;
-                  return (
-                    <tr key={task.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50">
-                      <td className="p-4 font-bold text-slate-800">{task.name}</td>
-                      <td className="p-4 text-slate-600 font-medium">{task.assignedTeam}</td>
-                      <td className="p-4 text-slate-600">{task.expectedDays}</td>
-                      <td className={`p-4 font-bold ${isDelayed ? 'text-red-600' : 'text-emerald-600'}`}>
-                        {task.actualDays}
-                      </td>
-                      <td className="p-4">
-                        <span className={`px-2 py-1 rounded text-xs font-bold ${isDelayed ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-700'}`}>
-                          {isDelayed ? 'Delayed' : 'On Track'}
-                        </span>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+
+          <div className="mt-4 flex justify-end gap-3">
+            <button type="button" onClick={onClose} className="px-5 py-2.5 rounded-lg text-sm font-semibold text-slate-300 hover:text-white hover:bg-slate-800 transition-colors">
+              Cancel
+            </button>
+            <button type="submit" className="px-5 py-2.5 rounded-lg text-sm font-semibold bg-indigo-600 hover:bg-indigo-500 text-white transition-colors">
+              Save Task
+            </button>
           </div>
-        )}
+        </form>
       </div>
     </div>
   );

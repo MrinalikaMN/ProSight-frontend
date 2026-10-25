@@ -7,12 +7,14 @@ export default function Projects() {
   const [selectedProject, setSelectedProject] = useState(null);
   const [tasks, setTasks] = useState({ "To Do": [], "In Progress": [], "Completed": [] });
   const [users, setUsers] = useState([]);
+  const [searchQuery, setSearchQuery] = useState("");
   
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
   const [newProjectName, setNewProjectName] = useState("");
+  const [newProjectBudget, setNewProjectBudget] = useState("");
   
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
-  const [newTask, setNewTask] = useState({ name: "", description: "", status: "To Do", priority: "Medium", dueDate: "", assignee: "" });
+  const [newTask, setNewTask] = useState({ name: "", description: "", status: "To Do", priority: "Medium", dueDate: "", assignee: "", cost: "" });
 
   const userRole = localStorage.getItem("userRole");
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
@@ -64,14 +66,21 @@ export default function Projects() {
 
   const selectProject = (project) => {
     setSelectedProject(project);
+    setSearchQuery(""); // Reset search when switching projects
     fetchTasks(project.id);
   };
 
   const handleCreateProject = async (e) => {
     e.preventDefault();
     try {
-      await axios.post(`${API_URL}/api/projects`, { name: newProjectName, status: "Active" }, getAuthHeaders());
+      const projectPayload = { 
+        name: newProjectName, 
+        status: "Active", 
+        budget: parseFloat(newProjectBudget) || 0 
+      };
+      await axios.post(`${API_URL}/api/projects`, projectPayload, getAuthHeaders());
       setNewProjectName("");
+      setNewProjectBudget("");
       setIsProjectModalOpen(false);
       fetchProjects();
     } catch (err) {
@@ -95,8 +104,12 @@ export default function Projects() {
     e.preventDefault();
     if (!selectedProject) return;
     try {
-      await axios.post(`${API_URL}/api/projects/${selectedProject.id}/tasks`, newTask, getAuthHeaders());
-      setNewTask({ name: "", description: "", status: "To Do", priority: "Medium", dueDate: "", assignee: "" });
+      const taskPayload = {
+        ...newTask,
+        cost: parseFloat(newTask.cost) || 0
+      };
+      await axios.post(`${API_URL}/api/projects/${selectedProject.id}/tasks`, taskPayload, getAuthHeaders());
+      setNewTask({ name: "", description: "", status: "To Do", priority: "Medium", dueDate: "", assignee: "", cost: "" });
       setIsTaskModalOpen(false);
       fetchTasks(selectedProject.id);
     } catch (err) {
@@ -138,6 +151,15 @@ export default function Projects() {
       console.error("Failed to update task status", err);
       fetchTasks(selectedProject.id);
     }
+  };
+
+  const getFilteredTasks = (columnTasks) => {
+    if (!searchQuery.trim()) return columnTasks;
+    const query = searchQuery.toLowerCase();
+    return columnTasks.filter(task => 
+      task.name.toLowerCase().includes(query) || 
+      (task.description && task.description.toLowerCase().includes(query))
+    );
   };
 
   const getPriorityColor = (priority) => {
@@ -188,64 +210,88 @@ export default function Projects() {
           </div>
         ) : (
           <div className="flex flex-col h-full">
-            <div className="flex justify-between items-center mb-6">
+            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-6 gap-4">
               <div>
                 <h1 className="text-2xl font-black text-slate-900 dark:text-white">{selectedProject.name}</h1>
-                <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mt-1">Kanban Board</p>
+                <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mt-1">
+                  Budget: <span className="text-emerald-600 dark:text-emerald-400 font-bold">${selectedProject.budget || '0.00'}</span>
+                </p>
               </div>
-              <button onClick={() => setIsTaskModalOpen(true)} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 px-5 rounded-xl transition-colors shadow-sm flex items-center gap-2">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4"/></svg>
-                New Task
-              </button>
+              <div className="flex w-full lg:w-auto items-center gap-3">
+                <div className="relative flex-grow">
+                  <input 
+                    type="text" 
+                    placeholder="Search tasks..." 
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none text-slate-700 dark:text-slate-200 transition-shadow"
+                  />
+                  <svg className="w-4 h-4 absolute left-3.5 top-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                </div>
+                <button onClick={() => setIsTaskModalOpen(true)} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 px-5 rounded-xl transition-colors shadow-sm flex items-center gap-2 whitespace-nowrap">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4"/></svg>
+                  New Task
+                </button>
+              </div>
             </div>
 
             <DragDropContext onDragEnd={onDragEnd}>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
-                {Object.keys(tasks).map(column => (
-                  <Droppable droppableId={column} key={column}>
-                    {(provided, snapshot) => (
-                      <div {...provided.droppableProps} ref={provided.innerRef} className={`bg-slate-100 dark:bg-slate-800/50 p-4 rounded-2xl border ${snapshot.isDraggingOver ? 'border-indigo-400 dark:border-indigo-500' : 'border-slate-200 dark:border-slate-700/50'} min-h-[500px] transition-colors`}>
-                        <h3 className="font-bold text-slate-700 dark:text-slate-300 mb-4 px-2 flex justify-between items-center">
-                          {column}
-                          <span className="bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-xs py-1 px-2.5 rounded-full">{tasks[column].length}</span>
-                        </h3>
-                        <div className="space-y-3">
-                          {tasks[column].map((task, index) => (
-                            <Draggable key={task.id.toString()} draggableId={task.id.toString()} index={index}>
-                              {(provided, snapshot) => (
-                                <div ref={provided.innerRef} {...provided.draggableProps} {...provided.dragHandleProps} className={`bg-white dark:bg-slate-800 p-4 rounded-xl border ${snapshot.isDragging ? 'border-indigo-500 shadow-lg' : 'border-slate-200 dark:border-slate-700 shadow-sm'} group`}>
-                                  <div className="flex justify-between items-start mb-2">
-                                    <span className={`text-[10px] uppercase tracking-wider font-bold px-2 py-0.5 rounded border ${getPriorityColor(task.priority)}`}>{task.priority}</span>
-                                    {userRole === 'ROLE_ADMIN' && (
-                                      <button onClick={() => handleDeleteTask(task.id)} className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-rose-500 transition-all">
-                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-                                      </button>
-                                    )}
-                                  </div>
-                                  <h4 className="font-bold text-slate-800 dark:text-slate-100 mb-1">{task.name}</h4>
-                                  {task.description && <p className="text-xs text-slate-500 dark:text-slate-400 mb-3 line-clamp-2">{task.description}</p>}
-                                  
-                                  <div className="flex justify-between items-center mt-3 pt-3 border-t border-slate-100 dark:border-slate-700/50">
-                                    <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400">
-                                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-                                      {task.dueDate || "No Date"}
+                {Object.keys(tasks).map(column => {
+                  const filteredTasks = getFilteredTasks(tasks[column]);
+                  return (
+                    <Droppable droppableId={column} key={column}>
+                      {(provided, snapshot) => (
+                        <div {...provided.droppableProps} ref={provided.innerRef} className={`bg-slate-100 dark:bg-slate-800/50 p-4 rounded-2xl border ${snapshot.isDraggingOver ? 'border-indigo-400 dark:border-indigo-500' : 'border-slate-200 dark:border-slate-700/50'} min-h-[500px] transition-colors`}>
+                          <h3 className="font-bold text-slate-700 dark:text-slate-300 mb-4 px-2 flex justify-between items-center">
+                            {column}
+                            <span className="bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-xs py-1 px-2.5 rounded-full">{filteredTasks.length}</span>
+                          </h3>
+                          <div className="space-y-3">
+                            {filteredTasks.map((task, index) => (
+                              <Draggable key={task.id.toString()} draggableId={task.id.toString()} index={index}>
+                                {(provided, snapshot) => (
+                                  <div ref={provided.innerRef} {...provided.draggableProps} {...provided.dragHandleProps} className={`bg-white dark:bg-slate-800 p-4 rounded-xl border ${snapshot.isDragging ? 'border-indigo-500 shadow-lg' : 'border-slate-200 dark:border-slate-700 shadow-sm'} group`}>
+                                    
+                                    <div className="flex justify-between items-start mb-2">
+                                      <span className={`text-[10px] uppercase tracking-wider font-bold px-2 py-0.5 rounded border ${getPriorityColor(task.priority)}`}>{task.priority}</span>
+                                      {userRole === 'ROLE_ADMIN' && (
+                                        <button onClick={() => handleDeleteTask(task.id)} className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-rose-500 transition-all">
+                                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                        </button>
+                                      )}
                                     </div>
-                                    {task.assignee && (
-                                      <div title={task.assignee} className="w-6 h-6 rounded-full bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-400 flex items-center justify-center text-[10px] font-bold border border-indigo-200 dark:border-indigo-700">
-                                        {task.assignee.charAt(0).toUpperCase()}
+                                    
+                                    <h4 className="font-bold text-slate-800 dark:text-slate-100 mb-1">{task.name}</h4>
+                                    {task.description && <p className="text-xs text-slate-500 dark:text-slate-400 mb-3 line-clamp-2">{task.description}</p>}
+                                    
+                                    <div className="flex flex-wrap gap-2 mt-3 pt-3 border-t border-slate-100 dark:border-slate-700/50">
+                                      <div className="flex items-center gap-1 text-[11px] font-bold text-emerald-600 bg-emerald-100 dark:bg-emerald-900/30 dark:text-emerald-400 px-2 py-1 rounded">
+                                        ${task.cost || "0.00"}
                                       </div>
-                                    )}
+                                      <div className="flex items-center gap-1 text-[11px] font-semibold text-slate-500 dark:text-slate-400 px-2 py-1 bg-slate-50 dark:bg-slate-900 rounded">
+                                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                                        {task.dueDate || "No Date"}
+                                      </div>
+                                      {task.assignee && (
+                                        <div className="flex items-center gap-1 text-[11px] font-semibold text-slate-600 dark:text-slate-300 px-2 py-1 bg-slate-50 dark:bg-slate-900 rounded ml-auto">
+                                          <svg className="w-3 h-3 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                                          <span className="truncate max-w-[80px]">{task.assignee}</span>
+                                        </div>
+                                      )}
+                                    </div>
+
                                   </div>
-                                </div>
-                              )}
-                            </Draggable>
-                          ))}
-                          {provided.placeholder}
+                                )}
+                              </Draggable>
+                            ))}
+                            {provided.placeholder}
+                          </div>
                         </div>
-                      </div>
-                    )}
-                  </Droppable>
-                ))}
+                      )}
+                    </Droppable>
+                  );
+                })}
               </div>
             </DragDropContext>
           </div>
@@ -258,9 +304,16 @@ export default function Projects() {
           <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl w-full max-w-md border border-slate-200 dark:border-slate-700 overflow-hidden">
             <div className="p-6">
               <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-4">Create New Project</h3>
-              <form onSubmit={handleCreateProject}>
-                <input required type="text" value={newProjectName} onChange={(e) => setNewProjectName(e.target.value)} placeholder="Project Name" className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-xl px-4 py-3 text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 mb-6" />
-                <div className="flex gap-3 justify-end">
+              <form onSubmit={handleCreateProject} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wide">Project Name</label>
+                  <input required type="text" value={newProjectName} onChange={(e) => setNewProjectName(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-xl px-4 py-2.5 text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500" />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wide">Total Budget ($)</label>
+                  <input type="number" step="0.01" value={newProjectBudget} onChange={(e) => setNewProjectBudget(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-xl px-4 py-2.5 text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500" />
+                </div>
+                <div className="flex gap-3 justify-end pt-4">
                   <button type="button" onClick={() => setIsProjectModalOpen(false)} className="px-5 py-2.5 rounded-xl font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">Cancel</button>
                   <button type="submit" className="px-5 py-2.5 rounded-xl font-bold bg-indigo-600 hover:bg-indigo-700 text-white transition-colors shadow-sm">Create</button>
                 </div>
@@ -283,7 +336,7 @@ export default function Projects() {
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wide">Description</label>
-                  <textarea value={newTask.description} onChange={(e) => setNewTask({...newTask, description: e.target.value})} rows="3" className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-xl px-4 py-2.5 text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 resize-none" />
+                  <textarea value={newTask.description} onChange={(e) => setNewTask({...newTask, description: e.target.value})} rows="2" className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-xl px-4 py-2.5 text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 resize-none" />
                 </div>
                 
                 <div className="grid grid-cols-2 gap-4">
@@ -309,9 +362,13 @@ export default function Projects() {
                     <input type="date" value={newTask.dueDate} onChange={(e) => setNewTask({...newTask, dueDate: e.target.value})} className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-xl px-4 py-2.5 text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500" />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wide">Assignee</label>
-                    <input type="text" placeholder="e.g. Frontend Developer" value={newTask.assignee} onChange={(e) => setNewTask({...newTask, assignee: e.target.value})} className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-xl px-4 py-2.5 text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500" />
+                    <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wide">Task Cost ($)</label>
+                    <input type="number" step="0.01" placeholder="0.00" value={newTask.cost} onChange={(e) => setNewTask({...newTask, cost: e.target.value})} className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-xl px-4 py-2.5 text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500" />
                   </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wide">Assignee</label>
+                  <input type="text" placeholder="e.g. Frontend Developer" value={newTask.assignee} onChange={(e) => setNewTask({...newTask, assignee: e.target.value})} className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-xl px-4 py-2.5 text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500" />
                 </div>
 
                 <div className="flex gap-3 justify-end pt-4">

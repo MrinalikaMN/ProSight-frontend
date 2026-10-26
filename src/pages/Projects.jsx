@@ -20,6 +20,7 @@ export default function Projects() {
   const [taskCost, setTaskCost] = useState('');
   const [taskPriority, setTaskPriority] = useState('MEDIUM');
   const [taskDeadline, setTaskDeadline] = useState('');
+  const [taskRole, setTaskRole] = useState('Frontend Dev');
 
   // Edit Budget State
   const [isEditingBudget, setIsEditingBudget] = useState(false);
@@ -84,7 +85,8 @@ export default function Projects() {
         cost: Number(taskCost),
         priority: taskPriority,
         status: taskStatusTarget,
-        deadline: taskDeadline
+        deadline: taskDeadline,
+        role: taskRole
       });
       fetchTasks(currentProject.id);
       setTaskTitle('');
@@ -92,6 +94,7 @@ export default function Projects() {
       setTaskCost('');
       setTaskPriority('MEDIUM');
       setTaskDeadline('');
+      setTaskRole('Frontend Dev');
       setIsTaskModalOpen(false);
     } catch (err) {
       console.error("Failed to create task", err);
@@ -226,7 +229,8 @@ export default function Projects() {
                       <button onClick={() => handleDeleteTask(task.id)} className="absolute top-2 right-2 text-slate-500 hover:text-rose-400 text-xs">✕</button>
                       <h4 className="font-bold text-white text-sm mb-1">{task.title || task.name}</h4>
                       <p className="text-xs text-slate-400 line-clamp-2 mb-2">{task.description}</p>
-                      {task.deadline && <p className="text-xs text-indigo-300 mb-2">Due: {task.deadline}</p>}
+                      {task.deadline && <p className="text-xs text-indigo-300 mb-1">Due: {task.deadline}</p>}
+                      {task.role && <p className="text-xs text-slate-400 mb-2">Role: {task.role}</p>}
                       <div className="flex justify-between items-center text-xs">
                         <span className="text-indigo-400 font-semibold">{task.priority}</span>
                         <span className="text-emerald-400 font-medium">${task.cost || 0}</span>
@@ -253,7 +257,8 @@ export default function Projects() {
                       <button onClick={() => handleDeleteTask(task.id)} className="absolute top-2 right-2 text-slate-500 hover:text-rose-400 text-xs">✕</button>
                       <h4 className="font-bold text-white text-sm mb-1">{task.title || task.name}</h4>
                       <p className="text-xs text-slate-400 line-clamp-2 mb-2">{task.description}</p>
-                      {task.deadline && <p className="text-xs text-amber-300 mb-2">Due: {task.deadline}</p>}
+                      {task.deadline && <p className="text-xs text-amber-300 mb-1">Due: {task.deadline}</p>}
+                      {task.role && <p className="text-xs text-slate-400 mb-2">Role: {task.role}</p>}
                       <div className="flex justify-between items-center text-xs">
                         <span className="text-amber-400 font-semibold">{task.priority}</span>
                         <span className="text-emerald-400 font-medium">${task.cost || 0}</span>
@@ -280,7 +285,8 @@ export default function Projects() {
                       <button onClick={() => handleDeleteTask(task.id)} className="absolute top-2 right-2 text-slate-500 hover:text-rose-400 text-xs">✕</button>
                       <h4 className="font-bold text-white text-sm mb-1">{task.title || task.name}</h4>
                       <p className="text-xs text-slate-400 line-clamp-2 mb-2">{task.description}</p>
-                      {task.deadline && <p className="text-xs text-emerald-300 mb-2">Due: {task.deadline}</p>}
+                      {task.deadline && <p className="text-xs text-emerald-300 mb-1">Due: {task.deadline}</p>}
+                      {task.role && <p className="text-xs text-slate-400 mb-2">Role: {task.role}</p>}
                       <div className="flex justify-between items-center text-xs">
                         <span className="text-emerald-500 font-semibold">{task.priority}</span>
                         <span className="text-emerald-400 font-medium">${task.cost || 0}</span>
@@ -340,6 +346,15 @@ export default function Projects() {
               <div>
                 <label className="text-xs text-slate-400 block mb-1">Deadline Date</label>
                 <input type="date" required value={taskDeadline} onChange={(e) => setTaskDeadline(e.target.value)} className="w-full bg-slate-900 border border-slate-700 text-white px-3 py-2 rounded-xl text-sm" />
+              </div>
+              <div>
+                <label className="text-xs text-slate-400 block mb-1">Assigned Role</label>
+                <select value={taskRole} onChange={(e) => setTaskRole(e.target.value)} className="w-full bg-slate-900 border border-slate-700 text-white px-3 py-2 rounded-xl text-sm">
+                  <option value="Frontend Dev">Frontend Dev</option>
+                  <option value="Backend Developer">Backend Developer</option>
+                  <option value="Security Engineer">Security Engineer</option>
+                  <option value="DevOps Engineer">DevOps Engineer</option>
+                </select>
               </div>
               <div>
                 <label className="text-xs text-slate-400 block mb-1">Priority</label>

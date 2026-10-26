@@ -7,7 +7,6 @@ export default function Projects() {
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   
-  // Edit Budget State
   const [isEditingBudget, setIsEditingBudget] = useState(false);
   const [newBudget, setNewBudget] = useState('');
 
@@ -55,7 +54,7 @@ export default function Projects() {
       await axios.put(`${API_URL}/api/projects/${currentProject.id}`, updatedProj);
       setCurrentProject(updatedProj);
       setIsEditingBudget(false);
-      fetchProjects(); // Refresh list
+      fetchProjects();
     } catch (err) {
       console.error("Failed to update budget", err);
     }
@@ -65,14 +64,12 @@ export default function Projects() {
     return <div className="text-slate-400 p-8">Loading Projects...</div>;
   }
 
-  // Filter tasks by column status
   const todoTasks = tasks.filter(t => t.status === 'To Do');
   const inProgressTasks = tasks.filter(t => t.status === 'In Progress');
   const completedTasks = tasks.filter(t => t.status === 'Completed');
 
   return (
     <div className="max-w-7xl mx-auto flex gap-6 font-sans">
-      {/* Sidebar Projects List */}
       <div className="w-1/4 bg-slate-800/50 border border-slate-700/60 rounded-2xl p-4 h-[calc(100vh-120px)] flex flex-col">
         <div className="flex justify-between items-center mb-4 px-2">
           <h2 className="text-white font-bold text-lg">Projects</h2>
@@ -95,11 +92,9 @@ export default function Projects() {
         </div>
       </div>
 
-      {/* Main Project Board View */}
       <div className="flex-1 bg-slate-800/30 border border-slate-700/60 rounded-2xl p-6 h-[calc(100vh-120px)] overflow-y-auto">
         {currentProject ? (
           <div>
-            {/* Project Header & Budget Edit Section */}
             <div className="flex justify-between items-start mb-6 border-b border-slate-700/60 pb-6">
               <div>
                 <div className="flex items-center gap-4 mb-1">
@@ -139,9 +134,7 @@ export default function Projects() {
               </div>
             </div>
 
-            {/* Kanban Columns */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {/* To Do Column */}
               <div className="bg-slate-900/50 border border-slate-700/40 rounded-xl p-4">
                 <div className="flex justify-between items-center mb-4">
                   <h3 className="font-bold text-slate-200 text-sm tracking-wide">To Do</h3>
@@ -161,7 +154,6 @@ export default function Projects() {
                 </div>
               </div>
 
-              {/* In Progress Column */}
               <div className="bg-slate-900/50 border border-slate-700/40 rounded-xl p-4">
                 <div className="flex justify-between items-center mb-4">
                   <h3 className="font-bold text-slate-200 text-sm tracking-wide">In Progress</h3>
@@ -181,7 +173,6 @@ export default function Projects() {
                 </div>
               </div>
 
-              {/* Completed Column */}
               <div className="bg-slate-900/50 border border-slate-700/40 rounded-xl p-4">
                 <div className="flex justify-between items-center mb-4">
                   <h3 className="font-bold text-slate-200 text-sm tracking-wide">Completed</h3>

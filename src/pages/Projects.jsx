@@ -7,10 +7,18 @@ export default function Projects() {
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   
-  // Modal State
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  // Project Modal State
+  const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
   const [newProjectName, setNewProjectName] = useState('');
   const [newProjectBudget, setNewProjectBudget] = useState('');
+
+  // Task Modal State
+  const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
+  const [taskStatusTarget, setTaskStatusTarget] = useState('To Do');
+  const [taskTitle, setTaskTitle] = useState('');
+  const [taskDesc, setTaskDesc] = useState('');
+  const [taskCost, setTaskCost] = useState('');
+  const [taskPriority, setTaskPriority] = useState('MEDIUM');
 
   // Edit Budget State
   const [isEditingBudget, setIsEditingBudget] = useState(false);
@@ -60,9 +68,39 @@ export default function Projects() {
       fetchTasks(res.data.id);
       setNewProjectName('');
       setNewProjectBudget('');
-      setIsModalOpen(false);
+      setIsProjectModalOpen(false);
     } catch (err) {
       console.error("Failed to create project", err);
+    }
+  };
+
+  const handleCreateTask = async (e) => {
+    e.preventDefault();
+    try {
+      await axios.post(`${API_URL}/api/projects/${currentProject.id}/tasks`, {
+        title: taskTitle,
+        description: taskDesc,
+        cost: Number(taskCost),
+        priority: taskPriority,
+        status: taskStatusTarget
+      });
+      fetchTasks(currentProject.id);
+      setTaskTitle('');
+      setTaskDesc('');
+      setTaskCost('');
+      setTaskPriority('MEDIUM');
+      setIsTaskModalOpen(false);
+    } catch (err) {
+      console.error("Failed to create task", err);
+    }
+  };
+
+  const handleDeleteTask = async (taskId) => {
+    try {
+      await axios.delete(`${API_URL}/api/tasks/${taskId}`);
+      fetchTasks(currentProject.id);
+    } catch (err) {
+      console.error("Failed to delete task", err);
     }
   };
 
@@ -100,8 +138,8 @@ export default function Projects() {
         <div className="flex justify-between items-center mb-4 px-2">
           <h2 className="text-white font-bold text-lg">Projects</h2>
           <button
-            onClick={() => setIsModalOpen(true)}
-            className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-3 py-1.5 rounded-xl transition-colors flex items-center gap-1 shadow-lg"
+            onClick={() => setIsProjectModalOpen(true)}
+            className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-3 py-1.5 rounded-xl transition-colors shadow-lg"
           >
             + New Project
           </button>
@@ -150,11 +188,10 @@ export default function Projects() {
                       value={newBudget}
                       onChange={(e) => setNewBudget(e.target.value)}
                       className="bg-slate-900 border border-slate-700 text-white px-3 py-1 rounded-lg text-sm w-40"
-                      placeholder="Enter budget"
                     />
                     <button
                       onClick={handleSaveBudget}
-                      className="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded-lg text-sm font-semibold transition-colors"
+                      className="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded-lg text-sm font-semibold"
                     >
                       Save
                     </button>
@@ -167,48 +204,81 @@ export default function Projects() {
               </div>
             </div>
 
-            {/* Kanban Columns */}
+            {/* Kanban Columns with Add Task Buttons */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="bg-slate-900/50 border border-slate-700/40 rounded-xl p-4">
+              {/* To Do */}
+              <div className="bg-slate-900/50 border border-slate-700/40 rounded-xl p-4 flex flex-col">
                 <div className="flex justify-between items-center mb-4">
-                  <h3 className="font-bold text-slate-200 text-sm tracking-wide">To Do</h3>
-                  <span className="bg-indigo-500/20 text-indigo-400 text-xs px-2 py-0.5 rounded-full font-bold">{todoTasks.length}</span>
+                  <h3 className="font-bold text-slate-200 text-sm tracking-wide">To Do ({todoTasks.length})</h3>
+                  <button
+                    onClick={() => { setTaskStatusTarget('To Do'); setIsTaskModalOpen(true); }}
+                    className="bg-indigo-600/30 hover:bg-indigo-600 text-indigo-300 hover:text-white text-xs px-2 py-1 rounded-lg font-bold transition-colors"
+                  >
+                    + Add
+                  </button>
                 </div>
-                <div className="space-y-3">
+                <div className="space-y-3 flex-1 overflow-y-auto">
                   {todoTasks.map(task => (
-                    <div key={task.id} className="bg-slate-800 border border-slate-700/80 p-3.5 rounded-xl shadow-sm">
+                    <div key={task.id} className="bg-slate-800 border border-slate-700/80 p-3.5 rounded-xl relative group">
+                      <button onClick={() => handleDeleteTask(task.id)} className="absolute top-2 right-2 text-slate-500 hover:text-rose-400 text-xs">✕</button>
                       <h4 className="font-bold text-white text-sm mb-1">{task.title || task.name}</h4>
                       <p className="text-xs text-slate-400 line-clamp-2 mb-2">{task.description}</p>
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="text-indigo-400 font-semibold">{task.priority}</span>
+                        <span className="text-emerald-400 font-medium">${task.cost || 0}</span>
+                      </div>
                     </div>
                   ))}
                 </div>
               </div>
 
-              <div className="bg-slate-900/50 border border-slate-700/40 rounded-xl p-4">
+              {/* In Progress */}
+              <div className="bg-slate-900/50 border border-slate-700/40 rounded-xl p-4 flex flex-col">
                 <div className="flex justify-between items-center mb-4">
-                  <h3 className="font-bold text-slate-200 text-sm tracking-wide">In Progress</h3>
-                  <span className="bg-amber-500/20 text-amber-400 text-xs px-2 py-0.5 rounded-full font-bold">{inProgressTasks.length}</span>
+                  <h3 className="font-bold text-slate-200 text-sm tracking-wide">In Progress ({inProgressTasks.length})</h3>
+                  <button
+                    onClick={() => { setTaskStatusTarget('In Progress'); setIsTaskModalOpen(true); }}
+                    className="bg-amber-600/30 hover:bg-amber-600 text-amber-300 hover:text-white text-xs px-2 py-1 rounded-lg font-bold transition-colors"
+                  >
+                    + Add
+                  </button>
                 </div>
-                <div className="space-y-3">
+                <div className="space-y-3 flex-1 overflow-y-auto">
                   {inProgressTasks.map(task => (
-                    <div key={task.id} className="bg-slate-800 border border-slate-700/80 p-3.5 rounded-xl shadow-sm">
+                    <div key={task.id} className="bg-slate-800 border border-slate-700/80 p-3.5 rounded-xl relative group">
+                      <button onClick={() => handleDeleteTask(task.id)} className="absolute top-2 right-2 text-slate-500 hover:text-rose-400 text-xs">✕</button>
                       <h4 className="font-bold text-white text-sm mb-1">{task.title || task.name}</h4>
                       <p className="text-xs text-slate-400 line-clamp-2 mb-2">{task.description}</p>
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="text-amber-400 font-semibold">{task.priority}</span>
+                        <span className="text-emerald-400 font-medium">${task.cost || 0}</span>
+                      </div>
                     </div>
                   ))}
                 </div>
               </div>
 
-              <div className="bg-slate-900/50 border border-slate-700/40 rounded-xl p-4">
+              {/* Completed */}
+              <div className="bg-slate-900/50 border border-slate-700/40 rounded-xl p-4 flex flex-col">
                 <div className="flex justify-between items-center mb-4">
-                  <h3 className="font-bold text-slate-200 text-sm tracking-wide">Completed</h3>
-                  <span className="bg-emerald-500/20 text-emerald-400 text-xs px-2 py-0.5 rounded-full font-bold">{completedTasks.length}</span>
+                  <h3 className="font-bold text-slate-200 text-sm tracking-wide">Completed ({completedTasks.length})</h3>
+                  <button
+                    onClick={() => { setTaskStatusTarget('Completed'); setIsTaskModalOpen(true); }}
+                    className="bg-emerald-600/30 hover:bg-emerald-600 text-emerald-300 hover:text-white text-xs px-2 py-1 rounded-lg font-bold transition-colors"
+                  >
+                    + Add
+                  </button>
                 </div>
-                <div className="space-y-3">
+                <div className="space-y-3 flex-1 overflow-y-auto">
                   {completedTasks.map(task => (
-                    <div key={task.id} className="bg-slate-800 border border-slate-700/80 p-3.5 rounded-xl shadow-sm">
+                    <div key={task.id} className="bg-slate-800 border border-slate-700/80 p-3.5 rounded-xl relative group">
+                      <button onClick={() => handleDeleteTask(task.id)} className="absolute top-2 right-2 text-slate-500 hover:text-rose-400 text-xs">✕</button>
                       <h4 className="font-bold text-white text-sm mb-1">{task.title || task.name}</h4>
                       <p className="text-xs text-slate-400 line-clamp-2 mb-2">{task.description}</p>
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="text-emerald-500 font-semibold">{task.priority}</span>
+                        <span className="text-emerald-400 font-medium">${task.cost || 0}</span>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -221,47 +291,58 @@ export default function Projects() {
       </div>
 
       {/* Create Project Modal */}
-      {isModalOpen && (
+      {isProjectModalOpen && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
           <div className="bg-slate-800 border border-slate-700 p-6 rounded-2xl w-96">
             <h3 className="text-white font-bold text-lg mb-4">Create New Project</h3>
             <form onSubmit={handleCreateProject} className="space-y-4">
               <div>
                 <label className="text-xs text-slate-400 block mb-1">Project Name</label>
-                <input
-                  type="text"
-                  required
-                  value={newProjectName}
-                  onChange={(e) => setNewProjectName(e.target.value)}
-                  className="w-full bg-slate-900 border border-slate-700 text-white px-3 py-2 rounded-xl text-sm"
-                  placeholder="e.g. E-Commerce Redesign"
-                />
+                <input type="text" required value={newProjectName} onChange={(e) => setNewProjectName(e.target.value)} className="w-full bg-slate-900 border border-slate-700 text-white px-3 py-2 rounded-xl text-sm" placeholder="e.g. E-Commerce Redesign" />
               </div>
               <div>
                 <label className="text-xs text-slate-400 block mb-1">Budget ($)</label>
-                <input
-                  type="number"
-                  required
-                  value={newProjectBudget}
-                  onChange={(e) => setNewProjectBudget(e.target.value)}
-                  className="w-full bg-slate-900 border border-slate-700 text-white px-3 py-2 rounded-xl text-sm"
-                  placeholder="e.g. 10000"
-                />
+                <input type="number" required value={newProjectBudget} onChange={(e) => setNewProjectBudget(e.target.value)} className="w-full bg-slate-900 border border-slate-700 text-white px-3 py-2 rounded-xl text-sm" placeholder="10000" />
               </div>
               <div className="flex justify-end gap-2 mt-6">
-                <button
-                  type="button"
-                  onClick={() => setIsModalOpen(false)}
-                  className="bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded-xl text-sm font-medium"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl text-sm font-bold"
-                >
-                  Create
-                </button>
+                <button type="button" onClick={() => setIsProjectModalOpen(false)} className="bg-slate-700 text-white px-4 py-2 rounded-xl text-sm font-medium">Cancel</button>
+                <button type="submit" className="bg-indigo-600 text-white px-4 py-2 rounded-xl text-sm font-bold">Create</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Create Task Modal */}
+      {isTaskModalOpen && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
+          <div className="bg-slate-800 border border-slate-700 p-6 rounded-2xl w-96">
+            <h3 className="text-white font-bold text-lg mb-4">Add Task to {taskStatusTarget}</h3>
+            <form onSubmit={handleCreateTask} className="space-y-4">
+              <div>
+                <label className="text-xs text-slate-400 block mb-1">Task Title</label>
+                <input type="text" required value={taskTitle} onChange={(e) => setTaskTitle(e.target.value)} className="w-full bg-slate-900 border border-slate-700 text-white px-3 py-2 rounded-xl text-sm" placeholder="e.g. Setup Database" />
+              </div>
+              <div>
+                <label className="text-xs text-slate-400 block mb-1">Description</label>
+                <input type="text" value={taskDesc} onChange={(e) => setTaskDesc(e.target.value)} className="w-full bg-slate-900 border border-slate-700 text-white px-3 py-2 rounded-xl text-sm" placeholder="Brief details" />
+              </div>
+              <div>
+                <label className="text-xs text-slate-400 block mb-1">Cost ($)</label>
+                <input type="number" required value={taskCost} onChange={(e) => setTaskCost(e.target.value)} className="w-full bg-slate-900 border border-slate-700 text-white px-3 py-2 rounded-xl text-sm" placeholder="500" />
+              </div>
+              <div>
+                <label className="text-xs text-slate-400 block mb-1">Priority</label>
+                <select value={taskPriority} onChange={(e) => setTaskPriority(e.target.value)} className="w-full bg-slate-900 border border-slate-700 text-white px-3 py-2 rounded-xl text-sm">
+                  <option value="LOW">LOW</option>
+                  <option value="MEDIUM">MEDIUM</option>
+                  <option value="HIGH">HIGH</option>
+                  <option value="CRITICAL">CRITICAL</option>
+                </select>
+              </div>
+              <div className="flex justify-end gap-2 mt-6">
+                <button type="button" onClick={() => setIsTaskModalOpen(false)} className="bg-slate-700 text-white px-4 py-2 rounded-xl text-sm font-medium">Cancel</button>
+                <button type="submit" className="bg-indigo-600 text-white px-4 py-2 rounded-xl text-sm font-bold">Add Task</button>
               </div>
             </form>
           </div>

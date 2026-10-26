@@ -19,6 +19,7 @@ export default function Projects() {
   const [taskDesc, setTaskDesc] = useState('');
   const [taskCost, setTaskCost] = useState('');
   const [taskPriority, setTaskPriority] = useState('MEDIUM');
+  const [taskDeadline, setTaskDeadline] = useState('');
 
   // Edit Budget State
   const [isEditingBudget, setIsEditingBudget] = useState(false);
@@ -82,13 +83,15 @@ export default function Projects() {
         description: taskDesc,
         cost: Number(taskCost),
         priority: taskPriority,
-        status: taskStatusTarget
+        status: taskStatusTarget,
+        deadline: taskDeadline
       });
       fetchTasks(currentProject.id);
       setTaskTitle('');
       setTaskDesc('');
       setTaskCost('');
       setTaskPriority('MEDIUM');
+      setTaskDeadline('');
       setIsTaskModalOpen(false);
     } catch (err) {
       console.error("Failed to create task", err);
@@ -204,7 +207,7 @@ export default function Projects() {
               </div>
             </div>
 
-            {/* Kanban Columns with Add Task Buttons */}
+            {/* Kanban Columns */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {/* To Do */}
               <div className="bg-slate-900/50 border border-slate-700/40 rounded-xl p-4 flex flex-col">
@@ -223,6 +226,7 @@ export default function Projects() {
                       <button onClick={() => handleDeleteTask(task.id)} className="absolute top-2 right-2 text-slate-500 hover:text-rose-400 text-xs">✕</button>
                       <h4 className="font-bold text-white text-sm mb-1">{task.title || task.name}</h4>
                       <p className="text-xs text-slate-400 line-clamp-2 mb-2">{task.description}</p>
+                      {task.deadline && <p className="text-xs text-indigo-300 mb-2">Due: {task.deadline}</p>}
                       <div className="flex justify-between items-center text-xs">
                         <span className="text-indigo-400 font-semibold">{task.priority}</span>
                         <span className="text-emerald-400 font-medium">${task.cost || 0}</span>
@@ -249,6 +253,7 @@ export default function Projects() {
                       <button onClick={() => handleDeleteTask(task.id)} className="absolute top-2 right-2 text-slate-500 hover:text-rose-400 text-xs">✕</button>
                       <h4 className="font-bold text-white text-sm mb-1">{task.title || task.name}</h4>
                       <p className="text-xs text-slate-400 line-clamp-2 mb-2">{task.description}</p>
+                      {task.deadline && <p className="text-xs text-amber-300 mb-2">Due: {task.deadline}</p>}
                       <div className="flex justify-between items-center text-xs">
                         <span className="text-amber-400 font-semibold">{task.priority}</span>
                         <span className="text-emerald-400 font-medium">${task.cost || 0}</span>
@@ -275,6 +280,7 @@ export default function Projects() {
                       <button onClick={() => handleDeleteTask(task.id)} className="absolute top-2 right-2 text-slate-500 hover:text-rose-400 text-xs">✕</button>
                       <h4 className="font-bold text-white text-sm mb-1">{task.title || task.name}</h4>
                       <p className="text-xs text-slate-400 line-clamp-2 mb-2">{task.description}</p>
+                      {task.deadline && <p className="text-xs text-emerald-300 mb-2">Due: {task.deadline}</p>}
                       <div className="flex justify-between items-center text-xs">
                         <span className="text-emerald-500 font-semibold">{task.priority}</span>
                         <span className="text-emerald-400 font-medium">${task.cost || 0}</span>
@@ -316,7 +322,7 @@ export default function Projects() {
       {/* Create Task Modal */}
       {isTaskModalOpen && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
-          <div className="bg-slate-800 border border-slate-700 p-6 rounded-2xl w-96">
+          <div className="bg-slate-800 border border-slate-700 p-6 rounded-2xl w-96 max-h-[90vh] overflow-y-auto">
             <h3 className="text-white font-bold text-lg mb-4">Add Task to {taskStatusTarget}</h3>
             <form onSubmit={handleCreateTask} className="space-y-4">
               <div>
@@ -330,6 +336,10 @@ export default function Projects() {
               <div>
                 <label className="text-xs text-slate-400 block mb-1">Cost ($)</label>
                 <input type="number" required value={taskCost} onChange={(e) => setTaskCost(e.target.value)} className="w-full bg-slate-900 border border-slate-700 text-white px-3 py-2 rounded-xl text-sm" placeholder="500" />
+              </div>
+              <div>
+                <label className="text-xs text-slate-400 block mb-1">Deadline Date</label>
+                <input type="date" required value={taskDeadline} onChange={(e) => setTaskDeadline(e.target.value)} className="w-full bg-slate-900 border border-slate-700 text-white px-3 py-2 rounded-xl text-sm" />
               </div>
               <div>
                 <label className="text-xs text-slate-400 block mb-1">Priority</label>

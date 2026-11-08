@@ -1,3 +1,163 @@
 @import "tailwindcss";
 
-@variant dark (&:is(.dark *));
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ProSight design tokens.
+   Colours live in CSS variables so light and dark mode swap in one place.
+   Use them in Tailwind as bg-canvas, bg-surface, text-ink, text-muted, border-line, etc. */
+:root {
+  --canvas: #f3f5f9;
+  --surface: #ffffff;
+  --surface-2: #f7f8fb;
+  --line: #e2e6ee;
+  --line-strong: #cdd3df;
+  --ink: #131a2b;
+  --muted: #5a6479;
+  --faint: #8b94a8;
+  --brand: #3d5afe;
+  --brand-ink: #ffffff;
+  --brand-soft: #e8ecff;
+  --ok: #0f9d7a;
+  --ok-soft: #e1f5ee;
+  --watch: #c27c0e;
+  --watch-soft: #fdf1dc;
+  --risk: #d63a3f;
+  --risk-soft: #fde6e6;
+  --shadow: 0 1px 2px rgb(19 26 43 / 0.06), 0 4px 16px -6px rgb(19 26 43 / 0.08);
+}
+
+.dark {
+  --canvas: #0e1320;
+  --surface: #151b2b;
+  --surface-2: #1a2134;
+  --line: #242c41;
+  --line-strong: #323c56;
+  --ink: #e7eaf3;
+  --muted: #9aa3b8;
+  --faint: #6d7690;
+  --brand: #6d84ff;
+  --brand-ink: #0e1320;
+  --brand-soft: #1f2850;
+  --ok: #3ccfa5;
+  --ok-soft: #12312b;
+  --watch: #f2b04c;
+  --watch-soft: #352a15;
+  --risk: #ff6b6f;
+  --risk-soft: #3a1c22;
+  --shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 8px 24px -10px rgb(0 0 0 / 0.5);
+}
+
+@theme inline {
+  --font-sans: "Schibsted Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-faint: var(--faint);
+  --color-brand: var(--brand);
+  --color-brand-ink: var(--brand-ink);
+  --color-brand-soft: var(--brand-soft);
+  --color-ok: var(--ok);
+  --color-ok-soft: var(--ok-soft);
+  --color-watch: var(--watch);
+  --color-watch-soft: var(--watch-soft);
+  --color-risk: var(--risk);
+  --color-risk-soft: var(--risk-soft);
+  --shadow-card: var(--shadow);
+}
+
+html {
+  color-scheme: light;
+}
+html.dark {
+  color-scheme: dark;
+}
+
+body {
+  background: var(--canvas);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-feature-settings: normal;
+  -webkit-font-smoothing: antialiased;
+}
+
+:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* Skeleton shimmer for loading states */
+@keyframes shimmer {
+  0% { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+.skeleton {
+  background: linear-gradient(90deg, var(--surface-2) 0%, var(--line) 50%, var(--surface-2) 100%);
+  background-size: 800px 100%;
+  animation: shimmer 1.4s linear infinite;
+  border-radius: 8px;
+}
+
+/* Modal and toast entrances: respond to a user action, so they are allowed to move */
+@keyframes pop-in {
+  from { opacity: 0; transform: translateY(8px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.animate-pop { animation: pop-in 180ms cubic-bezier(0.2, 0.8, 0.2, 1); }
+.animate-fade { animation: fade-in 150ms ease-out; }
+
+/* The one orchestrated moment: watchlist gauges fill in when the dashboard loads */
+@keyframes gauge-fill {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+.gauge-fill {
+  transform-origin: left center;
+  animation: gauge-fill 700ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Thin, quiet scrollbars for the board columns */
+.scroll-thin { scrollbar-width: thin; scrollbar-color: var(--line-strong) transparent; }
+
+/* Reports always print in light colours, on white, whatever theme is on screen. */
+@media print {
+  html.dark, html {
+  --canvas: #f3f5f9;
+  --surface: #ffffff;
+  --surface-2: #f7f8fb;
+  --line: #e2e6ee;
+  --line-strong: #cdd3df;
+  --ink: #131a2b;
+  --muted: #5a6479;
+  --faint: #8b94a8;
+  --brand: #3d5afe;
+  --brand-ink: #ffffff;
+  --brand-soft: #e8ecff;
+  --ok: #0f9d7a;
+  --ok-soft: #e1f5ee;
+  --watch: #c27c0e;
+  --watch-soft: #fdf1dc;
+  --risk: #d63a3f;
+  --risk-soft: #fde6e6;
+  --shadow: 0 1px 2px rgb(19 26 43 / 0.06), 0 4px 16px -6px rgb(19 26 43 / 0.08);
+    --canvas: #ffffff;
+  }
+  html, html.dark { color-scheme: light; background: #ffffff; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  @page { margin: 16mm; }
+}

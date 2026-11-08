@@ -1,161 +1,199 @@
-import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import { useMemo, useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
+import useAsync from '../lib/useAsync';
+import { loadPortfolio, endpoints } from '../lib/data';
+import { errorMessage } from '../lib/api';
+import { assessProject, taskSignals, levelStyles } from '../lib/risk';
+import { dueLabel, money } from '../lib/format';
+import {
+  Button, Card, CardHeader, PageHeader, LevelBadge, Skeleton, EmptyState, ErrorState, Input, Select, ConfirmDelete
+} from '../components/ui';
+import { cx } from '../lib/cx';
+import { IconAlert, IconPlus, IconPulse, IconCheck } from '../components/icons';
+import { useToast } from '../lib/toast';
+
+const SEVERITY_LEVEL = { High: 'risk', Medium: 'watch', Low: 'ok' };
+const FILTERS = ['All', 'High', 'Medium', 'Low'];
+
+function formatLogged(createdAt) {
+  if (!createdAt) return '';
+  const d = new Date(createdAt);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+// Builds the automatic early warnings for one project from its tasks and budget.
+function detectedWarnings(project, tasks) {
+  const out = [];
+  for (const t of tasks) {
+    const s = taskSignals(t);
+    if (s.overdue) out.push({ key: `o${t.id}`, level: 'risk', title: t.title, detail: `${dueLabel(t.deadline)}${t.role ? `, assigned to ${t.role}` : ''}` });
+    else if (s.dueSoon && s.urgent) out.push({ key: `d${t.id}`, level: 'watch', title: t.title, detail: `${dueLabel(t.deadline)}, ${t.priority.toLowerCase()} priority` });
+  }
+  const committed = tasks.reduce((n, t) => n + (Number(t.cost) || 0), 0);
+  const budget = Number(project.budget) || 0;
+  if (budget > 0 && committed > budget) {
+    out.unshift({ key: 'budget', level: 'risk', title: 'Over budget', detail: `Tasks cost ${money(committed)} against a ${money(budget)} budget` });
+  } else if (budget > 0 && committed / budget >= 0.85) {
+    out.unshift({ key: 'budget', level: 'watch', title: 'Budget nearly used', detail: `${money(committed)} of ${money(budget)} committed` });
+  }
+  return out;
+}
 
 export default function Warnings() {
-  const [projects, setProjects] = useState([]);
-  const [selectedProjectId, setSelectedProjectId] = useState('');
-  const [warnings, setWarnings] = useState([]);
-  const [newWarning, setNewWarning] = useState({ message: '', severity: 'Medium' });
+  const toast = useToast();
+  const [params, setParams] = useSearchParams();
+  const { data, error, loading, reload, setData } = useAsync(loadPortfolio, []);
+  const [filter, setFilter] = useState('All');
+  const [draft, setDraft] = useState({ message: '', severity: 'Medium' });
+  const [saving, setSaving] = useState(false);
 
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
+  const rows = useMemo(
+    () => (data ?? []).map((r) => ({ ...r, risk: assessProject(r.project, r.tasks, r.warnings, r.risks) })).sort((a, b) => b.risk.score - a.risk.score),
+    [data]
+  );
+  const current = rows.find((r) => String(r.project.id) === params.get('id')) ?? rows[0];
 
-  const getAuthHeaders = () => {
-    const token = localStorage.getItem('token');
-    return { headers: { Authorization: `Bearer ${token}` } };
-  };
+  const header = <PageHeader title="Warnings" description="Early warnings ProSight detects from deadlines and budgets, plus the risks your team logs by hand." />;
 
-  useEffect(() => {
-    fetchProjects();
-  }, []);
+  if (loading) return <>{header}<div className="space-y-4"><Skeleton className="h-12 rounded-xl" /><Skeleton className="h-64 rounded-xl" /></div></>;
+  if (error) return <>{header}<ErrorState message={errorMessage(error)} onRetry={reload} /></>;
+  if (!current) {
+    return <>{header}<Card><EmptyState icon={IconAlert} title="No projects to watch yet" action={<Link to="/projects?new=1"><Button><IconPlus size={16} /> New project</Button></Link>}>Warnings belong to a project. Create one first.</EmptyState></Card></>;
+  }
 
-  useEffect(() => {
-    if (selectedProjectId) {
-      fetchWarnings(selectedProjectId);
-    } else {
-      setWarnings([]);
-    }
-  }, [selectedProjectId]);
+  const pid = current.project.id;
+  const patchWarnings = (fn) => setData((rs) => rs.map((r) => (r.project.id === pid ? { ...r, warnings: fn(r.warnings) } : r)));
+  const detected = detectedWarnings(current.project, current.tasks);
+  const logged = [...current.warnings]
+    .filter((w) => filter === 'All' || w.severity === filter)
+    .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+  const counts = Object.fromEntries(FILTERS.map((f) => [f, f === 'All' ? current.warnings.length : current.warnings.filter((w) => w.severity === f).length]));
 
-  const fetchProjects = async () => {
-    try {
-      const res = await axios.get(`${API_URL}/api/projects`, getAuthHeaders());
-      setProjects(res.data);
-    } catch (err) {
-      console.error("Failed to fetch projects", err);
-    }
-  };
-
-  const fetchWarnings = async (projectId) => {
-    try {
-      const res = await axios.get(`${API_URL}/api/projects/${projectId}/warnings`, getAuthHeaders());
-      setWarnings(res.data);
-    } catch (err) {
-      console.error("Failed to fetch warnings", err);
-    }
-  };
-
-  const handleCreateWarning = async (e) => {
+  const addWarning = async (e) => {
     e.preventDefault();
-    if (!selectedProjectId) return alert("Please select a project first.");
-    
+    setSaving(true);
     try {
-      await axios.post(`${API_URL}/api/projects/${selectedProjectId}/warnings`, newWarning, getAuthHeaders());
-      setNewWarning({ message: '', severity: 'Medium' });
-      fetchWarnings(selectedProjectId);
+      const saved = await endpoints.createWarning(pid, draft);
+      patchWarnings((ws) => [{ createdAt: new Date().toISOString(), ...draft, ...saved }, ...ws]);
+      setDraft({ message: '', severity: draft.severity });
+      toast('Warning logged');
     } catch (err) {
-      console.error("Failed to create warning", err);
+      toast(errorMessage(err, "Couldn't log the warning."), 'error');
+    } finally {
+      setSaving(false);
     }
   };
 
-  const handleDeleteWarning = async (warningId) => {
+  const removeWarning = async (w) => {
+    patchWarnings((ws) => ws.filter((x) => x.id !== w.id));
     try {
-      await axios.delete(`${API_URL}/api/projects/${selectedProjectId}/warnings/${warningId}`, getAuthHeaders());
-      fetchWarnings(selectedProjectId);
+      await endpoints.deleteWarning(pid, w.id);
+      toast('Warning resolved');
     } catch (err) {
-      console.error("Failed to delete warning", err);
-    }
-  };
-
-  const getSeverityStyle = (severity) => {
-    switch (severity) {
-      case 'High': return 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400 border-rose-200 dark:border-rose-800';
-      case 'Medium': return 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border-amber-200 dark:border-amber-800';
-      case 'Low': return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800';
-      default: return 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-400 border-slate-200 dark:border-slate-700';
+      patchWarnings((ws) => [w, ...ws]);
+      toast(errorMessage(err, "Couldn't remove the warning."), 'error');
     }
   };
 
   return (
-    <div className="max-w-7xl mx-auto flex flex-col gap-6 transition-colors duration-300">
-      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 p-6">
-        <h2 className="text-2xl font-black text-slate-900 dark:text-white mb-6">Risk Analysis</h2>
-        
-        <div className="mb-6">
-          <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2">Select Project Context</label>
-          <select 
-            value={selectedProjectId} 
-            onChange={(e) => setSelectedProjectId(e.target.value)}
-            className="w-full md:w-1/2 bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-xl px-4 py-3 text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
-          >
-            <option value="">-- Choose a Project --</option>
-            {projects.map(p => (
-              <option key={p.id} value={p.id}>{p.name}</option>
-            ))}
-          </select>
-        </div>
+    <>
+      {header}
 
-        {selectedProjectId && (
-          <form onSubmit={handleCreateWarning} className="flex flex-col md:flex-row gap-4 items-end bg-slate-50 dark:bg-slate-900/50 p-5 rounded-xl border border-slate-200 dark:border-slate-700">
-            <div className="flex-1 w-full">
-              <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wide">Warning Message</label>
-              <input 
-                required 
-                type="text" 
-                value={newWarning.message} 
-                onChange={(e) => setNewWarning({...newWarning, message: e.target.value})} 
-                placeholder="Describe the identified risk or warning..."
-                className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-xl px-4 py-2.5 text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500" 
-              />
-            </div>
-            <div className="w-full md:w-48">
-              <label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1 uppercase tracking-wide">Severity</label>
-              <select 
-                value={newWarning.severity} 
-                onChange={(e) => setNewWarning({...newWarning, severity: e.target.value})}
-                className="w-full bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-xl px-4 py-2.5 text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
-              >
-                <option value="Low">Low</option>
-                <option value="Medium">Medium</option>
-                <option value="High">High</option>
-              </select>
-            </div>
-            <button type="submit" className="w-full md:w-auto px-6 py-2.5 rounded-xl font-bold bg-indigo-600 hover:bg-indigo-700 text-white transition-colors shadow-sm">
-              Log Warning
-            </button>
-          </form>
-        )}
+      {/* Project switcher */}
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-6">
+        <Select
+          value={pid} onChange={(e) => setParams({ id: e.target.value })}
+          className="sm:max-w-md font-semibold" aria-label="Project"
+        >
+          {rows.map(({ project, risk }) => (
+            <option key={project.id} value={project.id}>{project.name} ({risk.label.toLowerCase()})</option>
+          ))}
+        </Select>
+        <div className="flex items-center gap-2">
+          <LevelBadge level={current.risk.level}>{current.risk.label}</LevelBadge>
+          <span className="text-sm text-muted">Risk score {current.risk.score}/100</span>
+          <Link to={`/projects?id=${pid}`} className="text-sm font-semibold text-brand hover:underline ml-2">Open board</Link>
+        </div>
       </div>
 
-      {selectedProjectId && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {warnings.length === 0 ? (
-            <div className="col-span-full bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-8 text-center">
-              <p className="text-slate-500 dark:text-slate-400">No active warnings logged for this project. System healthy.</p>
+      <div className="grid gap-6 lg:grid-cols-5 items-start">
+        {/* Detected */}
+        <Card className="lg:col-span-2">
+          <CardHeader title="Detected automatically" description="Overdue work, urgent deadlines and budget pressure." />
+          {detected.length === 0 ? (
+            <div className="flex items-center gap-3 px-5 pb-5 text-sm text-muted">
+              <span className="h-8 w-8 rounded-lg bg-ok-soft text-ok flex items-center justify-center"><IconCheck size={16} /></span>
+              Nothing detected. Deadlines and budget look healthy.
             </div>
           ) : (
-            warnings.map(warning => (
-              <div key={warning.id} className="bg-white dark:bg-slate-800 rounded-xl p-5 border border-slate-200 dark:border-slate-700 shadow-sm relative group flex flex-col justify-between h-full">
-                <div>
-                  <div className="flex justify-between items-start mb-4">
-                    <span className={`text-[10px] uppercase tracking-wider font-bold px-2.5 py-1 rounded border ${getSeverityStyle(warning.severity)}`}>
-                      {warning.severity}
-                    </span>
-                    <button onClick={() => handleDeleteWarning(warning.id)} className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-rose-500 transition-all">
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-                    </button>
+            <ul className="px-5 pb-5 space-y-3">
+              {detected.map((d) => (
+                <li key={d.key} className="flex gap-3">
+                  <span className={cx('mt-1.5 h-2 w-2 shrink-0 rounded-full', levelStyles[d.level].bg)} />
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-ink">{d.title}</p>
+                    <p className={cx('text-[13px]', levelStyles[d.level].text)}>{d.detail}</p>
                   </div>
-                  <p className="text-slate-700 dark:text-slate-200 font-medium mb-4">{warning.message}</p>
-                </div>
-                <div className="border-t border-slate-100 dark:border-slate-700/50 pt-3">
-                  <p className="text-[10px] uppercase font-bold text-slate-400">
-                    Logged on {new Date(warning.createdAt).toLocaleDateString()}
-                  </p>
-                </div>
-              </div>
-            ))
+                </li>
+              ))}
+            </ul>
           )}
-        </div>
-      )}
-    </div>
+        </Card>
+
+        {/* Logged */}
+        <Card className="lg:col-span-3 overflow-hidden">
+          <CardHeader title="Logged by your team" description="Risks people have raised. Resolve them once they're handled." />
+
+          <form onSubmit={addWarning} className="mx-5 mb-4 flex flex-col sm:flex-row gap-2 rounded-lg border border-line bg-surface-2 p-2">
+            <Input
+              required value={draft.message} onChange={(e) => setDraft({ ...draft, message: e.target.value })}
+              placeholder="Describe a risk, e.g. vendor API contract still unsigned" className="flex-1 bg-surface" aria-label="Warning message"
+            />
+            <div className="flex gap-2">
+              <Select value={draft.severity} onChange={(e) => setDraft({ ...draft, severity: e.target.value })} className="w-32 bg-surface" aria-label="Severity">
+                <option>High</option><option>Medium</option><option>Low</option>
+              </Select>
+              <Button type="submit" loading={saving} className="shrink-0">Log warning</Button>
+            </div>
+          </form>
+
+          <div className="flex gap-1 px-5 pb-3" role="tablist" aria-label="Filter by severity">
+            {FILTERS.map((f) => (
+              <button
+                key={f} role="tab" aria-selected={filter === f} onClick={() => setFilter(f)}
+                className={cx(
+                  'h-8 px-3 rounded-full text-[13px] font-semibold cursor-pointer transition-colors',
+                  filter === f ? 'bg-ink text-canvas' : 'text-muted hover:text-ink hover:bg-surface-2'
+                )}
+              >
+                {f} <span className={filter === f ? 'opacity-70' : 'text-faint'}>{counts[f]}</span>
+              </button>
+            ))}
+          </div>
+
+          {logged.length === 0 ? (
+            <EmptyState icon={IconPulse} title={filter === 'All' ? 'No warnings logged' : `No ${filter.toLowerCase()} warnings`}>
+              {filter === 'All' ? 'When someone spots a risk the numbers can\'t see, log it above so the whole team knows.' : 'Try another filter.'}
+            </EmptyState>
+          ) : (
+            <ul className="divide-y divide-line border-t border-line">
+              {logged.map((w) => (
+                <li key={w.id} className="group flex items-start gap-3 px-5 py-3.5">
+                  <LevelBadge level={SEVERITY_LEVEL[w.severity] ?? 'watch'}>{w.severity}</LevelBadge>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-ink break-words">{w.message}</p>
+                    {w.createdAt && <p className="text-xs text-muted mt-0.5">Logged {formatLogged(w.createdAt)}</p>}
+                  </div>
+                  <div className="sm:opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
+                    <ConfirmDelete onConfirm={() => removeWarning(w)} label="Resolve warning" />
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Card>
+      </div>
+    </>
   );
 }
